@@ -863,7 +863,7 @@ function renderTranscript() {
 }
 
 function copyTranscript() {
-  copyToClipboardWithFeedback(currentTranscriptText || "", "copyTranscriptBtn");
+  copyToClipboardWithFeedback(getCopyableTranscriptText(), "copyTranscriptBtn");
 }
 
 function exportTranscript() {
@@ -1162,6 +1162,49 @@ function sanitizeFilename(str) {
     .replace(/\s+/g, "-")
     .substring(0, 50)
     .toLowerCase();
+}
+
+function formatTranscriptTimestamp(secondsValue) {
+  const totalSeconds = Math.max(0, Math.floor(Number(secondsValue) || 0));
+  const minutes = Math.floor(totalSeconds / 60);
+  const seconds = totalSeconds % 60;
+  return `${minutes}:${String(seconds).padStart(2, "0")}`;
+}
+
+function buildCopyableTranscriptText({
+  mode,
+  segments,
+  originalText,
+  getTranslation,
+}) {
+  const modeConfig = getTranscriptModeConfig(mode);
+  if (!modeConfig.targetLanguage) return originalText || "";
+
+  return (segments || [])
+    .map((segment) => {
+      const timestamp = formatTranscriptTimestamp(segment.start);
+      const original = normalizeCaptionText(segment.text);
+      const translated = normalizeCaptionText(getTranslation?.(segment) || "");
+      const translatedText = translated || "[Translation pending]";
+
+      if (modeConfig.aligned) {
+        return `[${timestamp}] ${original}\n${translatedText}`;
+      }
+
+      return `[${timestamp}] ${translatedText}`;
+    })
+    .join("\n\n");
+}
+
+function getCopyableTranscriptText() {
+  const segments = getActiveTranscriptSegments();
+  return buildCopyableTranscriptText({
+    mode: currentTranscriptMode,
+    segments,
+    originalText: currentTranscriptText,
+    getTranslation: (segment) =>
+      transcriptParagraphCache.get(transcriptTranslationCacheKey(segment)),
+  });
 }
 
 // ============================================================
@@ -2110,6 +2153,7 @@ function setTranslatingSpinner(show) {
 // not read this object at runtime.
 globalThis.__YTD_TRANSCRIPT_TESTING__ = {
   sendTranslationMessage,
+  buildCopyableTranscriptText,
   groupTranscriptEntries,
   splitOversizedThought,
   alignTranslatedSegmentBatch,

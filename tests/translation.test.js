@@ -298,6 +298,71 @@ test("translated-only omits English while aligned modes render source plus trans
   assert.match(englishJapanese, /\u65e5\u672c\u8a9e\u8a33/);
 });
 
+test("copy text follows the active transcript language mode", () => {
+  const { buildCopyableTranscriptText } = loadSidepanelHelpers();
+  const segments = [
+    { id: "segment-0-0", start: 0, text: "Original first sentence." },
+    { id: "segment-1-5000", start: 5, text: "Original second sentence." },
+  ];
+  const translations = new Map([
+    ["segment-0-0", "\u4e2d\u6587\u7b2c\u4e00\u53e5\u3002"],
+    ["segment-1-5000", "\u4e2d\u6587\u7b2c\u4e8c\u53e5\u3002"],
+  ]);
+  const getTranslation = (segment) => translations.get(segment.id);
+
+  assert.equal(
+    buildCopyableTranscriptText({
+      mode: "original",
+      segments,
+      originalText: "Original first sentence. Original second sentence.",
+      getTranslation,
+    }),
+    "Original first sentence. Original second sentence.",
+  );
+
+  assert.equal(
+    buildCopyableTranscriptText({
+      mode: "zh",
+      segments,
+      originalText: "",
+      getTranslation,
+    }),
+    "[0:00] \u4e2d\u6587\u7b2c\u4e00\u53e5\u3002\n\n[0:05] \u4e2d\u6587\u7b2c\u4e8c\u53e5\u3002",
+  );
+
+  assert.equal(
+    buildCopyableTranscriptText({
+      mode: "zh-bilingual",
+      segments,
+      originalText: "",
+      getTranslation,
+    }),
+    "[0:00] Original first sentence.\n\u4e2d\u6587\u7b2c\u4e00\u53e5\u3002\n\n[0:05] Original second sentence.\n\u4e2d\u6587\u7b2c\u4e8c\u53e5\u3002",
+  );
+});
+
+test("copy text supports Japanese bilingual mode and marks pending translations", () => {
+  const { buildCopyableTranscriptText } = loadSidepanelHelpers();
+  const segments = [
+    { id: "segment-0-0", start: 62, text: "Original first sentence." },
+    { id: "segment-1-65000", start: 65, text: "Original second sentence." },
+  ];
+  const getTranslation = (segment) =>
+    segment.id === "segment-0-0"
+      ? "\u65e5\u672c\u8a9e\u306e\u7b2c\u4e00\u6587\u3067\u3059\u3002"
+      : "";
+
+  assert.equal(
+    buildCopyableTranscriptText({
+      mode: "ja-bilingual",
+      segments,
+      originalText: "",
+      getTranslation,
+    }),
+    "[1:02] Original first sentence.\n\u65e5\u672c\u8a9e\u306e\u7b2c\u4e00\u6587\u3067\u3059\u3002\n\n[1:05] Original second sentence.\n[Translation pending]",
+  );
+});
+
 test("subtitle formatting tags render in original and translated segment text", () => {
   const { renderTranscriptSegmentContent } = loadSidepanelHelpers();
   const html = renderTranscriptSegmentContent(
