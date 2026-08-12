@@ -137,6 +137,7 @@ test("published prompt files contain runtime sections", () => {
     "prompts/translation.md": [
       "Shared base rules",
       "Chinese rules",
+      "Japanese rules",
       "Transcript batch translation",
     ],
   };

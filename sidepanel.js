@@ -31,7 +31,7 @@ let errorAction = null;
 
 // --- Translation state ---
 // The public transcript control intentionally supports only the original
-// subtitles, Chinese, and an aligned source + Chinese view.
+// subtitles, translated views, and aligned source + translation views.
 let currentTranscriptMode = "original";
 let translationGeneration = 0; // Invalidates responses from older UI modes/videos.
 let translationWorkCount = 0;
@@ -1727,8 +1727,41 @@ function onContentAreaScroll() {
 }
 
 // ============================================================
-// TRANSCRIPT MODE UI — Original / Chinese / aligned bilingual
+// TRANSCRIPT MODE UI — Original / translated / aligned source + translation
 // ============================================================
+
+const TRANSCRIPT_MODE_CONFIG = Object.freeze({
+  original: {
+    targetLanguage: null,
+    translatedOnlyLabel: "Original",
+    alignedLabel: "Original",
+    aligned: false,
+  },
+  zh: {
+    targetLanguage: "zh",
+    translatedOnlyLabel: "简体中文",
+    alignedLabel: "简体中文",
+    aligned: false,
+  },
+  "zh-en": {
+    targetLanguage: "zh",
+    translatedOnlyLabel: "简体中文",
+    alignedLabel: "简体中文",
+    aligned: true,
+  },
+  ja: {
+    targetLanguage: "ja",
+    translatedOnlyLabel: "日本語",
+    alignedLabel: "日本語",
+    aligned: false,
+  },
+  "ja-en": {
+    targetLanguage: "ja",
+    translatedOnlyLabel: "日本語",
+    alignedLabel: "日本語",
+    aligned: true,
+  },
+});
 
 function getOriginalTranscriptLabel() {
   const language = String(currentTranscriptLanguage || "").trim();
@@ -1741,8 +1774,13 @@ function getActiveTranscriptSegments() {
   return groupTranscriptEntries(currentTranscript || []);
 }
 
+function getTranscriptModeConfig(mode = currentTranscriptMode) {
+  return TRANSCRIPT_MODE_CONFIG[mode] || TRANSCRIPT_MODE_CONFIG.original;
+}
+
 function transcriptTranslationCacheKey(segment) {
-  return `${currentVideoId}:zh:semantic:${segment.id}`;
+  const targetLanguage = getTranscriptModeConfig().targetLanguage;
+  return `${currentVideoId}:${targetLanguage}:semantic:${segment.id}`;
 }
 
 function setTranscriptModeButtons(mode) {
@@ -1754,7 +1792,7 @@ function setTranscriptModeButtons(mode) {
 }
 
 async function handleTranscriptModeChange(mode) {
-  if (!["original", "zh", "bilingual"].includes(mode)) return;
+  if (!Object.hasOwn(TRANSCRIPT_MODE_CONFIG, mode)) return;
   if (mode === currentTranscriptMode) return;
 
   currentTranscriptMode = mode;
@@ -1774,6 +1812,7 @@ async function handleTranscriptModeChange(mode) {
 }
 
 function renderTranscriptSegmentContent(segment, mode, translated, error) {
+  const modeConfig = getTranscriptModeConfig(mode);
   const original = renderSubtitleInlineMarkup(segment.text);
   let translationHtml = "";
   if (translated) {
@@ -1784,7 +1823,7 @@ function renderTranscriptSegmentContent(segment, mode, translated, error) {
     translationHtml = "Waiting for translation…";
   }
 
-  if (mode === "bilingual") {
+  if (modeConfig.aligned) {
     return `<span class="transcript-copy"><span class="transcript-original">${original}</span><span class="transcript-translation ${translated ? "" : error ? "translation-error" : "translation-pending"}">${translationHtml}</span></span>`;
   }
 
@@ -1802,10 +1841,11 @@ function renderTranscriptModeRows(segments, mode) {
   badge.id = "transcriptSourceBadge";
   badge.className = "transcript-source-badge";
   const originalLabel = getOriginalTranscriptLabel();
+  const modeConfig = getTranscriptModeConfig(mode);
   const modeLabel =
-    mode === "bilingual"
-      ? `${originalLabel} + 简体中文`
-      : `简体中文 · translated from ${originalLabel}`;
+    modeConfig.aligned
+      ? `${originalLabel} + ${modeConfig.alignedLabel}`
+      : `${modeConfig.translatedOnlyLabel} · translated from ${originalLabel}`;
   badge.innerHTML = `<span class="source-dot source-dot--subs"></span> From video subtitles · ${modeLabel}`;
   transcriptList.parentElement.insertBefore(badge, transcriptList);
 
@@ -1923,7 +1963,7 @@ async function requestTranscriptTranslationBatch(
         segments: sourceBatch.map(({ id, text }) => ({ id, text })),
       },
       contentType: "transcriptBatch",
-      targetLanguage: "zh",
+      targetLanguage: getTranscriptModeConfig(mode).targetLanguage,
       videoTitle: currentVideoTitle,
     });
 

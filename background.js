@@ -1426,28 +1426,45 @@ async function handleExplainSelection(
 }
 
 // ============================================================
-// TRANSLATION — Translate transcript batches into Simplified Chinese
+// TRANSLATION — Translate transcript batches into supported learning languages
 // ============================================================
 // Uses a low temperature for consistent, natural translations.
+
+const TRANSLATION_LANGUAGE_CONFIG = Object.freeze({
+  zh: {
+    langName: "Simplified Chinese",
+    rulesHeading: "Chinese rules",
+    detector: looksLikeChineseTranslation,
+    invalidMessage: "Missing or invalid Chinese translation",
+    emptyMessage: "Translation returned no valid Chinese segments",
+  },
+  ja: {
+    langName: "Japanese",
+    rulesHeading: "Japanese rules",
+    detector: looksLikeJapaneseTranslation,
+    invalidMessage: "Missing or invalid Japanese translation",
+    emptyMessage: "Translation returned no valid Japanese segments",
+  },
+});
 
 /**
  * Shared base rules that every translation prompt includes.
  * These ensure translations sound natural rather than machine-translated.
  *
- * @param {string} targetLanguage - Must be 'zh'
+ * @param {string} targetLanguage - 'zh' or 'ja'
  * @returns {Promise<string>} - The base translation rules
  */
 async function getTranslationBaseRules(targetLanguage) {
-  if (targetLanguage !== "zh") {
+  const config = TRANSLATION_LANGUAGE_CONFIG[targetLanguage];
+  if (!config) {
     throw new Error(`Unsupported translation target: ${targetLanguage}`);
   }
-  const langName = "Simplified Chinese";
   const langSpecific = await loadPromptSection(
     "translation.md",
-    "Chinese rules",
+    config.rulesHeading,
   );
   return loadPromptSection("translation.md", "Shared base rules", {
-    langName,
+    langName: config.langName,
     langSpecific,
   });
 }
@@ -1485,11 +1502,21 @@ function looksLikeChineseTranslation(text, sourceText) {
   return /[\u3400-\u9fff]/.test(text);
 }
 
+function looksLikeJapaneseTranslation(text, sourceText) {
+  const latinLetters = (sourceText.match(/[A-Za-z]/g) || []).length;
+  if (latinLetters < 20) return true;
+  return /[\u3040-\u30ff\u3400-\u9fff]/.test(text);
+}
+
 /**
  * Aligns untrusted model output by exact stable ID. Missing, duplicated,
- * unknown, empty, or clearly non-Chinese values become explicit row errors.
+ * unknown, empty, or clearly wrong-language values become explicit row errors.
  */
-function normalizeTranslatedSegmentBatch(parsed, sourceSegments) {
+function normalizeTranslatedSegmentBatch(parsed, sourceSegments, targetLanguage = "zh") {
+  const config = TRANSLATION_LANGUAGE_CONFIG[targetLanguage];
+  if (!config) {
+    throw new Error(`Unsupported translation target: ${targetLanguage}`);
+  }
   const candidates = Array.isArray(parsed?.segments) ? parsed.segments : [];
   const sourceById = new Map(sourceSegments.map((segment) => [segment.id, segment]));
   const translatedById = new Map();
@@ -1505,7 +1532,7 @@ function normalizeTranslatedSegmentBatch(parsed, sourceSegments) {
     }
     const text = candidate.text.trim();
     const source = sourceById.get(candidate.id);
-    if (text && looksLikeChineseTranslation(text, source.text)) {
+    if (text && config.detector(text, source.text)) {
       translatedById.set(candidate.id, text);
     }
   });
@@ -1516,7 +1543,7 @@ function normalizeTranslatedSegmentBatch(parsed, sourceSegments) {
       text: translatedById.get(source.id) || "",
       error: translatedById.has(source.id)
         ? ""
-        : "Missing or invalid Chinese translation",
+        : config.invalidMessage,
     })),
   };
 }
@@ -1525,7 +1552,7 @@ function normalizeTranslatedSegmentBatch(parsed, sourceSegments) {
  * Translates content using the configured AI provider.
  * @param {Object} content - JSON object containing semantic transcript segments
  * @param {string} contentType - Must be 'transcriptBatch'
- * @param {string} targetLanguage - 'zh' for Simplified Chinese
+ * @param {string} targetLanguage - 'zh' for Simplified Chinese or 'ja' for Japanese
  * @param {string} videoTitle - The video title (for context)
  * @returns {Object} - { success, translatedContent } or { success: false, error }
  */
@@ -1536,7 +1563,8 @@ async function handleTranslateContent(
   videoTitle,
 ) {
   try {
-    if (targetLanguage !== "zh") {
+    const languageConfig = TRANSLATION_LANGUAGE_CONFIG[targetLanguage];
+    if (!languageConfig) {
       return {
         success: false,
         error: `Unsupported translation target: ${String(targetLanguage)}`,
@@ -1555,13 +1583,12 @@ async function handleTranslateContent(
     }
 
     const sourceSegments = validateTranscriptBatchRequest(content);
-    const langName = "Simplified Chinese";
     const baseRules = await getTranslationBaseRules(targetLanguage);
     const systemPrompt = await loadPromptSection(
       "translation.md",
       "Transcript batch translation",
       {
-        langName,
+        langName: languageConfig.langName,
         videoTitle: videoTitle || "Unknown",
         baseRules,
       },
@@ -1593,11 +1620,15 @@ async function handleTranslateContent(
     if (!result.success) return result;
 
     const parsed = parseLooseJson(result.text);
-    const aligned = normalizeTranslatedSegmentBatch(parsed, sourceSegments);
+    const aligned = normalizeTranslatedSegmentBatch(
+      parsed,
+      sourceSegments,
+      targetLanguage,
+    );
     if (!aligned.segments.some((segment) => segment.text)) {
       return {
         success: false,
-        error: "Translation returned no valid Chinese segments",
+        error: languageConfig.emptyMessage,
       };
     }
     return { success: true, translatedContent: aligned };

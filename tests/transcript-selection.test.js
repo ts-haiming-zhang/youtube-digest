@@ -29,7 +29,7 @@ test("all timestamped transcript row clicks use the selection-aware seek helper"
   assert.match(
     source,
     /div\.addEventListener\("click", \(event\) =>\s+seekFromTranscriptEntryClick\(event, segment\.start\),\s+\);/,
-    "translated-only and bilingual rows must use the guard",
+    "translated-only and aligned rows must use the guard",
   );
   assert.doesNotMatch(
     source,

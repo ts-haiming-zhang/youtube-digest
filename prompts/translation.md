@@ -1,6 +1,6 @@
 # Translation Prompts
 
-Used in `background.js` when the user requests Simplified Chinese content.
+Used in `background.js` when the user requests translated transcript content.
 
 ## Shared base rules
 
@@ -25,6 +25,17 @@ TRANSLATION RULES (follow strictly):
 - Remove empty spoken fillers rather than translating them literally, while preserving real uncertainty or emphasis.
 ```
 
+## Japanese rules
+
+```
+- Use natural modern Japanese. Avoid stiff literal translation unless the source is formal.
+- Translate the complete thought before deciding the final Japanese phrasing; never preserve a broken caption fragment just because the source API split there.
+- Use plain, clear Japanese for a smart tech/product audience.
+- Do NOT force katakana for product names or technical terms that are commonly kept in English, such as AI, API, GitHub, Claude Code, Codex, skill, builder, deck, and Chrome.
+- Keep readable spacing around adjacent English words or digits when it improves clarity, for example `Claude Code を使う` and `過去 6 か月`.
+- Remove empty spoken fillers rather than translating them literally, while preserving real uncertainty or emphasis.
+```
+
 ## Transcript batch translation
 
 Input is a JSON object with 1 to 4 complete semantic transcript segments. Each
@@ -45,7 +56,7 @@ The video is titled "{videoTitle}". Use the title and neighboring segments only 
 
 ## Variables
 
-- `{langName}` — "Simplified Chinese".
+- `{langName}` — "Simplified Chinese" or "Japanese".
 - `{baseRules}` — the shared base rules above.
-- `{langSpecific}` — the Chinese rules inserted into the shared base rules.
+- `{langSpecific}` — the language-specific rules inserted into the shared base rules.
 - `{videoTitle}` — video title.
