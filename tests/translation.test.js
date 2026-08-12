@@ -341,6 +341,22 @@ test("copy text follows the active transcript language mode", () => {
   );
 });
 
+test("copy and export both use the active transcript mode text", () => {
+  const source = read("sidepanel.js");
+  assert.match(
+    source,
+    /function copyTranscript\(\) \{\s+copyToClipboardWithFeedback\(getCopyableTranscriptText\(\), "copyTranscriptBtn"\);/,
+  );
+  assert.match(
+    source,
+    /function exportTranscript\(\) \{\s+const transcriptContent = getCopyableTranscriptText\(\);/,
+  );
+  assert.doesNotMatch(
+    source,
+    /function exportTranscript\(\) \{\s+const transcriptContent = currentTranscriptText \|\| "";/,
+  );
+});
+
 test("copy text supports Japanese bilingual mode and marks pending translations", () => {
   const { buildCopyableTranscriptText } = loadSidepanelHelpers();
   const segments = [

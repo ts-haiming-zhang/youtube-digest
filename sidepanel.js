@@ -867,7 +867,7 @@ function copyTranscript() {
 }
 
 function exportTranscript() {
-  const transcriptContent = currentTranscriptText || "";
+  const transcriptContent = getCopyableTranscriptText();
   const videoUrl = `https://youtube.com/watch?v=${currentVideoId}`;
 
   let exportText = "";
