@@ -165,10 +165,12 @@ function streamingResponse(chunks, { ok = true, status = 200 } = {}) {
 const encode = (value) => new TextEncoder().encode(value);
 const nextTurn = () => new Promise((resolve) => setImmediate(resolve));
 
-test("Transcript header exposes and wires Original, Chinese, Chinese bilingual, Japanese, and Japanese bilingual modes", () => {
+test("Transcript header exposes and wires Original, English, Chinese, and Japanese modes", () => {
   const html = read("sidepanel.html");
   const js = read("sidepanel.js");
   assert.match(html, /data-transcript-mode="original"[\s\S]*?>Original</);
+  assert.match(html, /data-transcript-mode="en"[\s\S]*?>English</);
+  assert.match(html, /data-transcript-mode="en-bilingual"[\s\S]*?>\u53cc\u8bed\uff08\u82f1\uff09</);
   assert.match(html, /data-transcript-mode="zh"[\s\S]*?>\u4e2d\u6587</);
   assert.match(html, /data-transcript-mode="zh-bilingual"[\s\S]*?>\u53cc\u8bed\uff08\u4e2d\uff09</);
   assert.match(html, /data-transcript-mode="ja"[\s\S]*?>\u65e5\u672c\u8a9e</);
@@ -176,7 +178,22 @@ test("Transcript header exposes and wires Original, Chinese, Chinese bilingual, 
   assert.match(js, /handleTranscriptModeChange\(button\.dataset\.transcriptMode\)/);
   assert.match(js, /contentType: "transcriptBatch"/);
   assert.match(js, /targetLanguage: getTranscriptModeConfig\(mode\)\.targetLanguage/);
+  assert.match(js, /button\.disabled = disabled/);
   assert.match(js, /Original \(\$\{language\}\)/);
+});
+
+test("translation modes are disabled when they match the original subtitle language", () => {
+  const { normalizeLanguageFamily, transcriptModeMatchesLanguage } =
+    loadSidepanelHelpers();
+  assert.equal(normalizeLanguageFamily("en-US"), "en");
+  assert.equal(normalizeLanguageFamily("zh-Hans"), "zh");
+  assert.equal(normalizeLanguageFamily("ja-JP"), "ja");
+  assert.equal(transcriptModeMatchesLanguage("en", "en-US"), true);
+  assert.equal(transcriptModeMatchesLanguage("en-bilingual", "en"), true);
+  assert.equal(transcriptModeMatchesLanguage("zh-bilingual", "zh-CN"), true);
+  assert.equal(transcriptModeMatchesLanguage("ja-bilingual", "jpn"), true);
+  assert.equal(transcriptModeMatchesLanguage("zh-bilingual", "en"), false);
+  assert.equal(transcriptModeMatchesLanguage("original", "en"), false);
 });
 
 test("semantic segmentation rebuilds sentences across caption boundaries", () => {
@@ -262,6 +279,18 @@ test("structured translation batches align by stable ID and expose missing fallb
 test("translated-only omits English while aligned modes render source plus translation", () => {
   const { renderTranscriptSegmentContent } = loadSidepanelHelpers();
   const segment = { id: "segment-0-0", text: "Original English sentence." };
+  const englishOnly = renderTranscriptSegmentContent(
+    segment,
+    "en",
+    "English translation.",
+    "",
+  );
+  const englishBilingual = renderTranscriptSegmentContent(
+    segment,
+    "en-bilingual",
+    "English translation.",
+    "",
+  );
   const chineseOnly = renderTranscriptSegmentContent(
     segment,
     "zh",
@@ -286,6 +315,11 @@ test("translated-only omits English while aligned modes render source plus trans
     "\u65e5\u672c\u8a9e\u8a33\u3067\u3059\u3002",
     "",
   );
+  assert.doesNotMatch(englishOnly, /Original English sentence/);
+  assert.match(englishOnly, /English translation/);
+  assert.match(englishBilingual, /transcript-original/);
+  assert.match(englishBilingual, /Original English sentence/);
+  assert.match(englishBilingual, /English translation/);
   assert.doesNotMatch(chineseOnly, /Original English sentence/);
   assert.match(chineseOnly, /\u4e2d\u6587\u8bd1\u6587/);
   assert.match(chineseEnglish, /transcript-original/);
@@ -318,6 +352,17 @@ test("copy text follows the active transcript language mode", () => {
       getTranslation,
     }),
     "Original first sentence. Original second sentence.",
+  );
+
+  assert.equal(
+    buildCopyableTranscriptText({
+      mode: "en-bilingual",
+      segments,
+      originalText: "",
+      getTranslation: (segment) =>
+        segment.id === "segment-0-0" ? "English first sentence." : "",
+    }),
+    "[0:00] Original first sentence.\nEnglish first sentence.\n\n[0:05] Original second sentence.\n[Translation pending]",
   );
 
   assert.equal(
@@ -467,6 +512,44 @@ test("background accepts Japanese transcript batches and rejects wrong-language 
   );
   assert.equal(invalid.segments[0].text, "");
   assert.match(invalid.segments[0].error, /Japanese/);
+});
+
+test("background accepts English transcript batches and rejects wrong-language English output", async () => {
+  const helpers = loadBackgroundHelpers({
+    fetchImpl: async (url) => {
+      if (url.startsWith("chrome-extension://")) {
+        return { ok: true, text: async () => read("prompts/translation.md") };
+      }
+      return {
+        ok: true,
+        json: async () => ({
+          choices: [{
+            message: {
+              content: '{"segments":[{"id":"segment-0-0","text":"A natural English translation."}]}',
+            },
+          }],
+        }),
+      };
+    },
+  });
+  const result = await helpers.handleTranslateContent(
+    { segments: [{ id: "segment-0-0", text: "\u3053\u3093\u306b\u3061\u306f\u3002" }] },
+    "transcriptBatch",
+    "en",
+    "Video",
+  );
+  assert.equal(result.success, true);
+  assert.equal(result.translatedContent.segments[0].text, "A natural English translation.");
+
+  const invalid = helpers.normalizeTranslatedSegmentBatch(
+    {
+      segments: [{ id: "segment-0-0", text: "\u3053\u3093\u306b\u3061\u306f\u3002" }],
+    },
+    [{ id: "segment-0-0", text: "\u3053\u3093\u306b\u3061\u306f\u3002" }],
+    "en",
+  );
+  assert.equal(invalid.segments[0].text, "");
+  assert.match(invalid.segments[0].error, /English/);
 });
 
 test("all AI product requests default DeepSeek to non-thinking without affecting custom providers", async () => {
@@ -771,9 +854,11 @@ test("translation message watchdog rejects, clears its timer, and ignores late r
   assert.equal(successClearCount, 1);
 });
 
-test("translation prompt preserves natural Chinese and Japanese learning style rules", () => {
+test("translation prompt preserves natural English, Chinese, and Japanese learning style rules", () => {
   const prompt = read("prompts/translation.md");
   assert.match(prompt, /Translate the complete thought/);
+  assert.match(prompt, /^## English rules$/m);
+  assert.match(prompt, /Use natural modern English/);
   assert.match(prompt, /Use 你, never 您/);
   assert.match(prompt, /spaces between Chinese and adjacent English words or digits/);
   assert.match(prompt, /^## Japanese rules$/m);

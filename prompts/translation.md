@@ -25,6 +25,16 @@ TRANSLATION RULES (follow strictly):
 - Remove empty spoken fillers rather than translating them literally, while preserving real uncertainty or emphasis.
 ```
 
+## English rules
+
+```
+- Use natural modern English. Avoid stiff literal translation unless the source is formal.
+- Translate the complete thought before deciding the final English phrasing; never preserve a broken caption fragment just because the source API split there.
+- Write for a smart tech/product audience. Keep product names and technical terms such as AI, API, GitHub, Claude Code, Codex, skill, builder, deck, and Chrome in their standard English form.
+- Remove empty spoken fillers rather than translating them literally, while preserving real uncertainty or emphasis.
+- Preserve the speaker's meaning and level of certainty. Do not add claims, examples, or explanations that are not in the source.
+```
+
 ## Japanese rules
 
 ```
@@ -56,7 +66,7 @@ The video is titled "{videoTitle}". Use the title and neighboring segments only 
 
 ## Variables
 
-- `{langName}` — "Simplified Chinese" or "Japanese".
+- `{langName}` — "English", "Simplified Chinese", or "Japanese".
 - `{baseRules}` — the shared base rules above.
 - `{langSpecific}` — the language-specific rules inserted into the shared base rules.
 - `{videoTitle}` — video title.

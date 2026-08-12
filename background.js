@@ -1431,6 +1431,13 @@ async function handleExplainSelection(
 // Uses a low temperature for consistent, natural translations.
 
 const TRANSLATION_LANGUAGE_CONFIG = Object.freeze({
+  en: {
+    langName: "English",
+    rulesHeading: "English rules",
+    detector: looksLikeEnglishTranslation,
+    invalidMessage: "Missing or invalid English translation",
+    emptyMessage: "Translation returned no valid English segments",
+  },
   zh: {
     langName: "Simplified Chinese",
     rulesHeading: "Chinese rules",
@@ -1451,7 +1458,7 @@ const TRANSLATION_LANGUAGE_CONFIG = Object.freeze({
  * Shared base rules that every translation prompt includes.
  * These ensure translations sound natural rather than machine-translated.
  *
- * @param {string} targetLanguage - 'zh' or 'ja'
+ * @param {string} targetLanguage - 'en', 'zh', or 'ja'
  * @returns {Promise<string>} - The base translation rules
  */
 async function getTranslationBaseRules(targetLanguage) {
@@ -1500,6 +1507,10 @@ function looksLikeChineseTranslation(text, sourceText) {
   const latinLetters = (sourceText.match(/[A-Za-z]/g) || []).length;
   if (latinLetters < 20) return true;
   return /[\u3400-\u9fff]/.test(text);
+}
+
+function looksLikeEnglishTranslation(text, sourceText) {
+  return /[A-Za-z]/.test(text);
 }
 
 function looksLikeJapaneseTranslation(text, sourceText) {
@@ -1552,7 +1563,7 @@ function normalizeTranslatedSegmentBatch(parsed, sourceSegments, targetLanguage 
  * Translates content using the configured AI provider.
  * @param {Object} content - JSON object containing semantic transcript segments
  * @param {string} contentType - Must be 'transcriptBatch'
- * @param {string} targetLanguage - 'zh' for Simplified Chinese or 'ja' for Japanese
+ * @param {string} targetLanguage - 'en' for English, 'zh' for Simplified Chinese, or 'ja' for Japanese
  * @param {string} videoTitle - The video title (for context)
  * @returns {Object} - { success, translatedContent } or { success: false, error }
  */

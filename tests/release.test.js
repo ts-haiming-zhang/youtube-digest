@@ -136,6 +136,7 @@ test("published prompt files contain runtime sections", () => {
     "prompts/note-cleanup.md": ["System prompt", "User prompt"],
     "prompts/translation.md": [
       "Shared base rules",
+      "English rules",
       "Chinese rules",
       "Japanese rules",
       "Transcript batch translation",

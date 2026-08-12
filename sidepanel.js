@@ -545,6 +545,7 @@ async function startDigest(videoId, videoUrl) {
     currentTranscriptText = cached.transcriptText;
     currentTranscriptTimestamped = cached.transcriptTimestamped;
     currentTranscriptLanguage = cached.transcriptLanguage || null;
+    ensureTranscriptModeAvailable();
     isAnalysisLoading = false;
 
     // Restore semantic-segment translations from persistent storage.
@@ -625,6 +626,7 @@ async function startDigest(videoId, videoUrl) {
   currentTranscriptText = transcriptResult.transcriptText;
   currentTranscriptTimestamped = transcriptResult.transcriptTextTimestamped;
   currentTranscriptLanguage = transcriptResult.language || null;
+  ensureTranscriptModeAvailable();
 
   // Render transcript immediately (no LLM needed)
   renderTranscript();
@@ -1780,6 +1782,18 @@ const TRANSCRIPT_MODE_CONFIG = Object.freeze({
     alignedLabel: "Original",
     aligned: false,
   },
+  en: {
+    targetLanguage: "en",
+    translatedOnlyLabel: "English",
+    alignedLabel: "English",
+    aligned: false,
+  },
+  "en-bilingual": {
+    targetLanguage: "en",
+    translatedOnlyLabel: "English",
+    alignedLabel: "English",
+    aligned: true,
+  },
   zh: {
     targetLanguage: "zh",
     translatedOnlyLabel: "简体中文",
@@ -1813,12 +1827,47 @@ function getOriginalTranscriptLabel() {
     : "Original";
 }
 
+function normalizeLanguageFamily(language) {
+  const normalized = String(language || "").trim().toLowerCase();
+  if (!normalized) return "";
+  if (normalized.startsWith("en")) return "en";
+  if (
+    normalized.startsWith("zh") ||
+    normalized === "cmn" ||
+    normalized === "yue"
+  ) {
+    return "zh";
+  }
+  if (normalized.startsWith("ja") || normalized === "jpn") return "ja";
+  return normalized.split(/[-_]/)[0];
+}
+
 function getActiveTranscriptSegments() {
   return groupTranscriptEntries(currentTranscript || []);
 }
 
 function getTranscriptModeConfig(mode = currentTranscriptMode) {
   return TRANSCRIPT_MODE_CONFIG[mode] || TRANSCRIPT_MODE_CONFIG.original;
+}
+
+function transcriptModeMatchesLanguage(mode, language) {
+  const targetLanguage = getTranscriptModeConfig(mode).targetLanguage;
+  if (!targetLanguage) return false;
+  return (
+    normalizeLanguageFamily(language) ===
+    normalizeLanguageFamily(targetLanguage)
+  );
+}
+
+function transcriptModeMatchesOriginalLanguage(mode) {
+  return transcriptModeMatchesLanguage(mode, currentTranscriptLanguage);
+}
+
+function ensureTranscriptModeAvailable() {
+  if (transcriptModeMatchesOriginalLanguage(currentTranscriptMode)) {
+    currentTranscriptMode = "original";
+  }
+  setTranscriptModeButtons(currentTranscriptMode);
 }
 
 function transcriptTranslationCacheKey(segment) {
@@ -1828,7 +1877,14 @@ function transcriptTranslationCacheKey(segment) {
 
 function setTranscriptModeButtons(mode) {
   document.querySelectorAll(".transcript-mode-btn").forEach((button) => {
+    const disabled = transcriptModeMatchesOriginalLanguage(
+      button.dataset.transcriptMode,
+    );
     const active = button.dataset.transcriptMode === mode;
+    button.disabled = disabled;
+    button.title = disabled
+      ? "Original subtitles are already in this language"
+      : "";
     button.classList.toggle("active", active);
     button.setAttribute("aria-pressed", String(active));
   });
@@ -1836,6 +1892,7 @@ function setTranscriptModeButtons(mode) {
 
 async function handleTranscriptModeChange(mode) {
   if (!Object.hasOwn(TRANSCRIPT_MODE_CONFIG, mode)) return;
+  if (transcriptModeMatchesOriginalLanguage(mode)) return;
   if (mode === currentTranscriptMode) return;
 
   currentTranscriptMode = mode;
@@ -2070,7 +2127,14 @@ function retryTranslationSegment(index, generation) {
  */
 async function translateTranscript() {
   const segments = getActiveTranscriptSegments();
-  if (!segments.length || currentTranscriptMode === "original") return;
+  if (
+    !segments.length ||
+    currentTranscriptMode === "original" ||
+    transcriptModeMatchesOriginalLanguage(currentTranscriptMode)
+  ) {
+    ensureTranscriptModeAvailable();
+    return;
+  }
 
   translationGeneration += 1;
   const generation = translationGeneration;
@@ -2155,6 +2219,8 @@ globalThis.__YTD_TRANSCRIPT_TESTING__ = {
   sendTranslationMessage,
   buildCopyableTranscriptText,
   groupTranscriptEntries,
+  normalizeLanguageFamily,
+  transcriptModeMatchesLanguage,
   splitOversizedThought,
   alignTranslatedSegmentBatch,
   renderSubtitleInlineMarkup,

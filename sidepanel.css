@@ -374,6 +374,16 @@ body {
   box-shadow: var(--shadow-sm);
 }
 
+.transcript-mode-btn:disabled {
+  color: var(--text-muted);
+  cursor: not-allowed;
+  opacity: 0.45;
+}
+
+.transcript-mode-btn:disabled:hover {
+  color: var(--text-muted);
+}
+
 .translation-spinner {
   display: none;
   width: 12px;
