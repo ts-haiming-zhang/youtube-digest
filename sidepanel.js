@@ -1743,7 +1743,7 @@ const TRANSCRIPT_MODE_CONFIG = Object.freeze({
     alignedLabel: "简体中文",
     aligned: false,
   },
-  "zh-en": {
+  "zh-bilingual": {
     targetLanguage: "zh",
     translatedOnlyLabel: "简体中文",
     alignedLabel: "简体中文",
@@ -1755,7 +1755,7 @@ const TRANSCRIPT_MODE_CONFIG = Object.freeze({
     alignedLabel: "日本語",
     aligned: false,
   },
-  "ja-en": {
+  "ja-bilingual": {
     targetLanguage: "ja",
     translatedOnlyLabel: "日本語",
     alignedLabel: "日本語",

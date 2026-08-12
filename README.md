@@ -89,7 +89,7 @@ Keys and settings are stored in Chrome's local extension storage on your device.
 
 1. Open a standard YouTube watch page with captions.
 2. Click the YouTube Digest extension icon to open the side panel.
-3. Read the timestamped transcript, or choose **Original**, **中文**, **中英**, **日本語**, or **英和**.
+3. Read the timestamped transcript, or choose **Original**, **中文**, **双语（中）**, **日本語**, or **2カ国語（日）**.
 4. Open **Overview** when you want AI-generated chapters and key quotes.
 5. Select transcript text when you want an AI explanation.
 6. Save a note from the player or a key quote, then revisit it from **Notes**.
@@ -99,7 +99,7 @@ Keys and settings are stored in Chrome's local extension storage on your device.
 - Google Chrome 116 or newer, using the Side Panel API.
 - Standard `youtube.com/watch` video pages.
 - Native subtitle tracks returned by Supadata. YouTube Digest prefers English when available, but may show another native language.
-- Original, Simplified Chinese, Chinese-English, Japanese, and English-Japanese transcript views.
+- Original, Simplified Chinese, bilingual Chinese, Japanese, and bilingual Japanese transcript views.
 - AI overviews, selected-text explanations, translation, and automatic note polishing.
 - Local notes and a local cache for recent transcript and digest results.
 

@@ -165,14 +165,14 @@ function streamingResponse(chunks, { ok = true, status = 200 } = {}) {
 const encode = (value) => new TextEncoder().encode(value);
 const nextTurn = () => new Promise((resolve) => setImmediate(resolve));
 
-test("Transcript header exposes and wires Original, Chinese, Chinese-English, Japanese, and English-Japanese modes", () => {
+test("Transcript header exposes and wires Original, Chinese, Chinese bilingual, Japanese, and Japanese bilingual modes", () => {
   const html = read("sidepanel.html");
   const js = read("sidepanel.js");
   assert.match(html, /data-transcript-mode="original"[\s\S]*?>Original</);
   assert.match(html, /data-transcript-mode="zh"[\s\S]*?>\u4e2d\u6587</);
-  assert.match(html, /data-transcript-mode="zh-en"[\s\S]*?>\u4e2d\u82f1</);
+  assert.match(html, /data-transcript-mode="zh-bilingual"[\s\S]*?>\u53cc\u8bed\uff08\u4e2d\uff09</);
   assert.match(html, /data-transcript-mode="ja"[\s\S]*?>\u65e5\u672c\u8a9e</);
-  assert.match(html, /data-transcript-mode="ja-en"[\s\S]*?>\u82f1\u548c</);
+  assert.match(html, /data-transcript-mode="ja-bilingual"[\s\S]*?>2\u30ab\u56fd\u8a9e\uff08\u65e5\uff09</);
   assert.match(js, /handleTranscriptModeChange\(button\.dataset\.transcriptMode\)/);
   assert.match(js, /contentType: "transcriptBatch"/);
   assert.match(js, /targetLanguage: getTranscriptModeConfig\(mode\)\.targetLanguage/);
@@ -270,7 +270,7 @@ test("translated-only omits English while aligned modes render source plus trans
   );
   const chineseEnglish = renderTranscriptSegmentContent(
     segment,
-    "zh-en",
+    "zh-bilingual",
     "\u4e2d\u6587\u8bd1\u6587\u3002",
     "",
   );
@@ -282,7 +282,7 @@ test("translated-only omits English while aligned modes render source plus trans
   );
   const englishJapanese = renderTranscriptSegmentContent(
     segment,
-    "ja-en",
+    "ja-bilingual",
     "\u65e5\u672c\u8a9e\u8a33\u3067\u3059\u3002",
     "",
   );
@@ -305,7 +305,7 @@ test("subtitle formatting tags render in original and translated segment text", 
       id: "segment-0-0",
       text: "Think <i>deeply</i>, <b>carefully</b>, and <u>clearly</u>.<br>Next line.",
     },
-    "zh-en",
+    "zh-bilingual",
     "\u5b57\u5730<i>\u601d\u8003</i>\u7684\u3002<strong>\u91cd\u70b9</strong>",
     "",
   );
